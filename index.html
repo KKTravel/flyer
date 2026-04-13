@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PDF 全屏檢視</title>
+  <style>
+    :root{
+      --bar-h: 56px;
+      --bg: #0b0f17;
+      --border: rgba(255,255,255,.12);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.70);
+      --btn: rgba(255,255,255,.10);
+      --btnHover: rgba(255,255,255,.16);
+    }
+    *{ box-sizing: border-box; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .topbar{
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      height: var(--bar-h);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      background: rgba(0,0,0,.35);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+    }
+    .title{
+      font-size: 14px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 50vw;
+    }
+    .actions{ display:flex; gap: 8px; align-items:center; }
+
+    button, a.btn{
+      appearance:none;
+      border: 1px solid var(--border);
+      background: var(--btn);
