@@ -3,84 +3,71 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Flyer 翻面</title>
+  <title>Flyer</title>
   <style>
     :root{
-      --bg: #0b0f17;
-      --panel: rgba(255,255,255,.06);
-      --border: rgba(255,255,255,.12);
-      --text: rgba(255,255,255,.92);
-      --muted: rgba(255,255,255,.70);
-      --btn: rgba(255,255,255,.10);
-      --btnHover: rgba(255,255,255,.16);
       --radius: 14px;
-      --shadow: 0 18px 50px rgba(0,0,0,.35);
-      --bar-h: 56px;
+      --shadow: 0 18px 50px rgba(0,0,0,.22);
+
+      /* 透明模式（嵌入外頁時透出外層底色） */
+      --btn-bg: rgba(255,255,255,.78);
+      --btn-bg-hover: rgba(255,255,255,.92);
+      --btn-border: rgba(0,0,0,.14);
+      --btn-text: rgba(0,0,0,.82);
+
+      /* 全屏模式（深色底 + 深色按鈕） */
+      --fs-bg: #0b0f17;
+      --fs-btn-bg: rgba(255,255,255,.12);
+      --fs-btn-bg-hover: rgba(255,255,255,.18);
+      --fs-btn-border: rgba(255,255,255,.14);
+      --fs-btn-text: rgba(255,255,255,.92);
+
+      /* 讓畫面不要貼邊（可改小，例如 8px） */
+      --gap: 16px;
+
+      /* 預設先用 A4 直式比例（寬/高），圖片載入後會被 JS 覆蓋成實際比例 */
+      --ratio: calc(210 / 297);
     }
+
     *{ box-sizing:border-box; }
     html, body{ height:100%; }
+    html, body{ background: transparent; }
     body{
       margin:0;
       font-family: system-ui, -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
-      background: var(--bg);
-      color: var(--text);
     }
 
-    .topbar{
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      height: var(--bar-h);
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 10px;
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(0,0,0,.35);
-      backdrop-filter: blur(10px);
-    }
-    .title{
-      font-size: 14px;
-      color: var(--muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 55vw;
-    }
-    .actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    /* 全部內容都包進 app：全屏對 app 做，按鈕不會消失 */
+    #app{
+      min-height: 100svh;
+      background: transparent;
 
-    button{
-      appearance:none;
-      border: 1px solid var(--border);
-      background: var(--btn);
-      color: var(--text);
-      padding: 9px 12px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 14px;
-      user-select:none;
-    }
-    button:hover{ background: var(--btnHover); }
-    button:disabled{ opacity:.55; cursor:not-allowed; }
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
 
-    .wrap{
-      min-height: calc(100svh - var(--bar-h));
-      display:grid;
-      place-items:center;
-      padding: 18px 12px 22px;
-      gap: 12px;
+      padding: 0; /* 不要上下留白 */
     }
 
-    /* 翻面舞台 */
+    /*
+      這裡是「最大高度不超出螢幕」的關鍵：
+      stage 的寬度 = min(不超出螢幕寬, 由螢幕高推回的最大寬)
+      若圖片是直式，(vh*ratio) 會確保高度 <= vh
+    */
     .stage{
-      width: min(560px, 92vw);
+      width: min(
+        calc(100vw - (var(--gap) + env(safe-area-inset-left) + env(safe-area-inset-right))),
+        calc((100svh - (var(--gap) + env(safe-area-inset-top) + env(safe-area-inset-bottom))) * var(--ratio))
+      );
+      padding: 0;
       perspective: 1200px;
     }
+
     .card{
       width: 100%;
-      /* 直式傳單常見比例（不影響圖片完整顯示，因為用 contain） */
-      aspect-ratio: 9 / 16;
+      /* 先給一個預設，JS 會自動改成 P1.png 的實際比例 */
+      aspect-ratio: 210 / 297;
+
       position: relative;
       transform-style: preserve-3d;
       transition: transform 700ms cubic-bezier(.2,.8,.2,1);
@@ -97,7 +84,7 @@
       border-radius: var(--radius);
       overflow:hidden;
       box-shadow: var(--shadow);
-      background: #111;
+      background: transparent;
       display:grid;
       place-items:center;
     }
@@ -106,118 +93,137 @@
     img{
       width:100%;
       height:100%;
-      object-fit: contain; /* 完整顯示，不裁切 */
+      object-fit: contain; /* 不裁切 */
       display:block;
-      background: #0f1320;
+      background: transparent;
     }
 
-    .hint{
-      color: var(--muted);
-      font-size: 13px;
-      line-height:1.6;
-      text-align:center;
-      max-width:min(560px, 92vw);
-    }
-
-    /* 全屏退出按鈕 */
-    .exit-fs{
+    /* 右上角浮動按鈕（一定要在 app 裡，才能全屏還在） */
+    .controls{
       position: fixed;
-      top: 12px;
-      right: 12px;
+      top: calc(12px + env(safe-area-inset-top));
+      right: calc(12px + env(safe-area-inset-right));
       z-index: 9999;
-      display: none;
+      display:flex;
+      gap: 8px;
+      align-items:center;
     }
-    body.is-fullscreen .exit-fs{ display:inline-flex; }
 
-    /* 全屏時可選：把上方工具列隱藏，畫面更滿 */
-    body.is-fullscreen .topbar{ display:none; }
-    body.is-fullscreen .wrap{ min-height: 100svh; padding-top: 12px; }
+    button, a.btn{
+      appearance:none;
+      border: 1px solid var(--btn-border);
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      padding: 9px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      user-select:none;
+      text-decoration: none;
+      display:inline-flex;
+      align-items:center;
+      box-shadow: 0 10px 26px rgba(0,0,0,.12);
+      backdrop-filter: blur(10px);
+    }
+    button:hover, a.btn:hover{ background: var(--btn-bg-hover); }
+
+    /* 全屏狀態樣式：加在 #app 上（最穩） */
+    #app.is-fs{
+      background: var(--fs-bg);
+      padding: 0;
+    }
+    #app.is-fs button,
+    #app.is-fs a.btn{
+      border: 1px solid var(--fs-btn-border);
+      background: var(--fs-btn-bg);
+      color: var(--fs-btn-text);
+      box-shadow: 0 10px 26px rgba(0,0,0,.35);
+    }
+    #app.is-fs button:hover,
+    #app.is-fs a.btn:hover{
+      background: var(--fs-btn-bg-hover);
+    }
+
+    /* 退出：只在全屏顯示；全屏：只在非全屏顯示 */
+    #btnExitFs{ display:none; }
+    #app.is-fs #btnExitFs{ display:inline-flex; }
+    #app.is-fs #btnEnterFs{ display:none; }
 
     @media (prefers-reduced-motion: reduce){
       .card{ transition:none; }
     }
   </style>
 </head>
-<body>
-  <div class="topbar">
-    <div class="title">Flyer（點圖片可翻面）</div>
-    <div class="actions">
-      <button id="btnFront" type="button">正面</button>
-      <button id="btnFlip" type="button">翻面</button>
-      <button id="btnBack" type="button">背面</button>
-      <button id="btnEnterFs" type="button">全屏</button>
-    </div>
-  </div>
 
-  <div class="wrap">
-    <div class="stage" id="stage">
+<body>
+  <div id="app">
+    <div class="stage">
       <div class="card" id="card" tabindex="0" aria-label="傳單翻面（點擊或按 Enter/空白鍵 翻面）">
-        <div class="side front">
-          <img src="./P1.png" alt="P1 正面" />
-        </div>
-        <div class="side back">
-          <img src="./P2.png" alt="P2 背面" />
-        </div>
+        <div class="side front"><img id="imgFront" src="./P1.png" alt="P1 正面" /></div>
+        <div class="side back"><img id="imgBack"  src="./P2.png" alt="P2 背面" /></div>
       </div>
     </div>
 
-    <div class="hint">
-      操作：點圖片翻面；或用按鈕切換正/背面。全屏後右上角會出現「退出全屏」。
+    <div class="controls">
+      <a class="btn" id="btnPdf" href="#" target="_blank" rel="noopener">PDF</a>
+      <button id="btnEnterFs" type="button">全屏</button>
+      <button id="btnExitFs" type="button">退出</button>
     </div>
   </div>
 
-  <button class="exit-fs" id="btnExitFs" type="button">退出全屏</button>
-
   <script>
-    const card = document.getElementById("card");
-    const stage = document.getElementById("stage");
+    const PDF_URL = "https://drive.google.com/file/d/1PsGehBZ4-xpwaP3PkV7tO1vMjlAqe3xH/view?usp=sharing";
 
-    const btnFront = document.getElementById("btnFront");
-    const btnFlip  = document.getElementById("btnFlip");
-    const btnBack  = document.getElementById("btnBack");
+    const app = document.getElementById("app");
+    const card = document.getElementById("card");
+    const imgFront = document.getElementById("imgFront");
+
+    const btnPdf = document.getElementById("btnPdf");
     const btnEnterFs = document.getElementById("btnEnterFs");
     const btnExitFs  = document.getElementById("btnExitFs");
 
-    function setFlipped(on){
-      card.classList.toggle("is-flipped", on);
-    }
-    function toggleFlip(){
-      card.classList.toggle("is-flipped");
-    }
+    btnPdf.href = PDF_URL;
 
-    // 點卡片翻面
-    card.addEventListener("click", toggleFlip);
-
-    // 鍵盤 Enter / Space 翻面
-    card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggleFlip();
+    // 1) 依 P1 實際比例，同步設定 card 比例 + CSS 變數 --ratio（用來算最大寬度）
+    function applyAspectFromFront(){
+      const w = imgFront.naturalWidth;
+      const h = imgFront.naturalHeight;
+      if (w && h) {
+        const ratio = w / h; // 寬/高
+        card.style.aspectRatio = `${w} / ${h}`;
+        document.documentElement.style.setProperty("--ratio", ratio.toString());
       }
+    }
+    if (imgFront.complete) applyAspectFromFront();
+    imgFront.addEventListener("load", applyAspectFromFront);
+
+    // 2) 翻面
+    function toggleFlip(){ card.classList.toggle("is-flipped"); }
+    card.addEventListener("click", toggleFlip);
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleFlip(); }
     });
 
-    btnFront.addEventListener("click", () => setFlipped(false));
-    btnBack.addEventListener("click",  () => setFlipped(true));
-    btnFlip.addEventListener("click",  toggleFlip);
-
-    // 全屏
-    async function enterFullscreen(){
-      if (!document.fullscreenEnabled) return;
-      await stage.requestFullscreen();
+    // 3) 全屏（含 WebKit fallback）
+    function enterFullscreen(){
+      if (app.requestFullscreen) return app.requestFullscreen();
+      if (app.webkitRequestFullscreen) return app.webkitRequestFullscreen();
     }
-    async function exitFullscreen(){
-      if (document.fullscreenElement) await document.exitFullscreen();
+    function exitFullscreen(){
+      if (document.exitFullscreen) return document.exitFullscreen();
+      if (document.webkitExitFullscreen) return document.webkitExitFullscreen();
     }
-
     btnEnterFs.addEventListener("click", enterFullscreen);
     btnExitFs.addEventListener("click", exitFullscreen);
 
+    function isFullscreen(){
+      return !!(document.fullscreenElement || document.webkitFullscreenElement);
+    }
     function syncFS(){
-      const isFs = !!document.fullscreenElement;
-      document.body.classList.toggle("is-fullscreen", isFs);
-      btnEnterFs.disabled = isFs;
+      app.classList.toggle("is-fs", isFullscreen());
     }
     document.addEventListener("fullscreenchange", syncFS);
+    document.addEventListener("webkitfullscreenchange", syncFS);
     syncFS();
   </script>
 </body>
