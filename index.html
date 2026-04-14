@@ -9,59 +9,65 @@
       --radius: 14px;
       --shadow: 0 18px 50px rgba(0,0,0,.22);
 
+      /* 透明模式（嵌入外頁時透出外層底色） */
       --btn-bg: rgba(255,255,255,.78);
       --btn-bg-hover: rgba(255,255,255,.92);
       --btn-border: rgba(0,0,0,.14);
       --btn-text: rgba(0,0,0,.82);
 
+      /* 全屏模式（深色底 + 深色按鈕） */
       --fs-bg: #0b0f17;
       --fs-btn-bg: rgba(255,255,255,.12);
       --fs-btn-bg-hover: rgba(255,255,255,.18);
       --fs-btn-border: rgba(255,255,255,.14);
       --fs-btn-text: rgba(255,255,255,.92);
 
+      /* 讓畫面不要貼邊（可改小，例如 8px） */
       --gap: 16px;
 
-      /* 預設 A4 寬/高；載入後 JS 會覆蓋成實際比例 */
+      /* 預設先用 A4 直式比例（寬/高），圖片載入後會被 JS 覆蓋成實際比例 */
       --ratio: calc(210 / 297);
     }
 
     *{ box-sizing:border-box; }
-
-    /* 外層不滾，讓 #app 自己滾：避免雙滾軸 */
-    html, body{
-      height: 100%;
-      margin: 0;
-      background: transparent;
-      overflow: hidden;
+    html, body{ height:100%; }
+    html, body{ background: transparent; }
+    body{
+      margin:0;
       font-family: system-ui, -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
     }
 
-    /* 讓 flyer 頁面右側出現滾軸（內容超出就可捲） */
+    /* 全部內容都包進 app：全屏對 app 做，按鈕不會消失 */
     #app{
-      height: 100svh;
-      overflow-y: auto;       /* 想永遠顯示滾軸→改成 scroll */
-      overflow-x: hidden;
-      scrollbar-gutter: stable;
-
+      min-height: 100svh;
       background: transparent;
+
       display: flex;
       justify-content: center;
       align-items: flex-start;
-      padding: 0;
+
+      padding: 0; /* 不要上下留白 */
     }
 
-    /* 改成「以寬為主」：會放大，超出高度就靠滾軸 */
+    /*
+      這裡是「最大高度不超出螢幕」的關鍵：
+      stage 的寬度 = min(不超出螢幕寬, 由螢幕高推回的最大寬)
+      若圖片是直式，(vh*ratio) 會確保高度 <= vh
+    */
     .stage{
-      width: min(1100px, calc(100vw - (var(--gap) + env(safe-area-inset-left) + env(safe-area-inset-right))));
+      width: min(
+        calc(100vw - (var(--gap) + env(safe-area-inset-left) + env(safe-area-inset-right))),
+        calc((100svh - (var(--gap) + env(safe-area-inset-top) + env(safe-area-inset-bottom))) * var(--ratio))
+      );
       padding: 0;
       perspective: 1200px;
-      margin: 0 auto;
     }
 
     .card{
       width: 100%;
-      aspect-ratio: 210 / 297; /* 預設，JS 會用 P1 真實比例覆蓋 */
+      /* 先給一個預設，JS 會自動改成 P1.png 的實際比例 */
+      aspect-ratio: 210 / 297;
+
       position: relative;
       transform-style: preserve-3d;
       transition: transform 700ms cubic-bezier(.2,.8,.2,1);
@@ -87,11 +93,12 @@
     img{
       width:100%;
       height:100%;
-      object-fit: contain;
+      object-fit: contain; /* 不裁切 */
       display:block;
       background: transparent;
     }
 
+    /* 右上角浮動按鈕（一定要在 app 裡，才能全屏還在） */
     .controls{
       position: fixed;
       top: calc(12px + env(safe-area-inset-top));
@@ -120,9 +127,10 @@
     }
     button:hover, a.btn:hover{ background: var(--btn-bg-hover); }
 
-    /* 全屏狀態 */
+    /* 全屏狀態樣式：加在 #app 上（最穩） */
     #app.is-fs{
       background: var(--fs-bg);
+      padding: 0;
     }
     #app.is-fs button,
     #app.is-fs a.btn{
@@ -136,6 +144,7 @@
       background: var(--fs-btn-bg-hover);
     }
 
+    /* 退出：只在全屏顯示；全屏：只在非全屏顯示 */
     #btnExitFs{ display:none; }
     #app.is-fs #btnExitFs{ display:inline-flex; }
     #app.is-fs #btnEnterFs{ display:none; }
@@ -175,24 +184,27 @@
 
     btnPdf.href = PDF_URL;
 
-    // 用 P1 實際比例覆蓋 aspect-ratio（正反面要同尺寸才最完美）
+    // 1) 依 P1 實際比例，同步設定 card 比例 + CSS 變數 --ratio（用來算最大寬度）
     function applyAspectFromFront(){
       const w = imgFront.naturalWidth;
       const h = imgFront.naturalHeight;
       if (w && h) {
+        const ratio = w / h; // 寬/高
         card.style.aspectRatio = `${w} / ${h}`;
-        document.documentElement.style.setProperty("--ratio", (w / h).toString());
+        document.documentElement.style.setProperty("--ratio", ratio.toString());
       }
     }
     if (imgFront.complete) applyAspectFromFront();
     imgFront.addEventListener("load", applyAspectFromFront);
 
+    // 2) 翻面
     function toggleFlip(){ card.classList.toggle("is-flipped"); }
     card.addEventListener("click", toggleFlip);
     card.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleFlip(); }
     });
 
+    // 3) 全屏（含 WebKit fallback）
     function enterFullscreen(){
       if (app.requestFullscreen) return app.requestFullscreen();
       if (app.webkitRequestFullscreen) return app.webkitRequestFullscreen();
